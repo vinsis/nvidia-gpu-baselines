@@ -98,13 +98,18 @@ if __name__ == '__main__':
         with torch.backends.cuda.sdp_kernel(
             enable_flash=True, enable_math=False, enable_mem_efficient=False
         ):
-            torch.cuda.synchronize()
-            st = time()
-            for _ in range(num_trials):
-                _ = attn.forward_sdp_kernel(x)
-            torch.cuda.synchronize()
-            et = time()
-            print(f'Forward flash took {et - st} seconds for {num_trials} trials')
+            if embed_dim > 128:
+                print('Skipping flash attention because embed_dim > 128')
+            elif x.ndim != 4:
+                print('Skipping flash attention because x.ndim != 4')
+            else:
+                torch.cuda.synchronize()
+                st = time()
+                for _ in range(num_trials):
+                    _ = attn.forward_sdp_kernel(x)
+                torch.cuda.synchronize()
+                et = time()
+                print(f'Forward flash took {et - st} seconds for {num_trials} trials')
 
         with torch.backends.cuda.sdp_kernel(
             enable_flash=False, enable_math=True, enable_mem_efficient=False
