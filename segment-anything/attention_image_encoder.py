@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Tuple, Type
+from time import time
 
 
 class Attention(nn.Module):
@@ -69,8 +70,60 @@ if __name__ == '__main__':
     attn = Attention(embed_dim).to(device).eval()
     if torch.cuda.is_available():
         attn = attn.half()
+    
     y1 = attn.forward(x)
     y2 = attn.forward_sdp_kernel(x)
     print((y1 - y2).abs().max().item())
     atol = 1e-3 if torch.cuda.is_available() else 1e-6
     print(torch.allclose(y1, y2, atol=atol))
+
+    if torch.cuda.is_available():
+        num_trials = 100
+        torch.cuda.synchronize()
+        st = time()
+        for _ in range(num_trials):
+            _ = attn.forward(x)
+        torch.cuda.synchronize()
+        et = time()
+        print(f'Forward took {et - st} seconds for {num_trials} trials')
+
+        torch.cuda.synchronize()
+        st = time()
+        for _ in range(num_trials):
+            _ = attn.forward_sdp_kernel(x)
+        torch.cuda.synchronize()
+        et = time()
+        print(f'Forward sdp kernel took {et - st} seconds for {num_trials} trials')
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_flash=True, enable_math=False, enable_mem_efficient=False
+        ):
+            torch.cuda.synchronize()
+            st = time()
+            for _ in range(num_trials):
+                _ = attn.forward_sdp_kernel(x)
+            torch.cuda.synchronize()
+            et = time()
+            print(f'Forward flash took {et - st} seconds for {num_trials} trials')
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_flash=False, enable_math=True, enable_mem_efficient=False
+        ):
+            torch.cuda.synchronize()
+            st = time()
+            for _ in range(num_trials):
+                _ = attn.forward_sdp_kernel(x)
+            torch.cuda.synchronize()
+            et = time()
+            print(f'Forward math took {et - st} seconds for {num_trials} trials')
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_flash=False, enable_math=False, enable_mem_efficient=True
+        ):
+            torch.cuda.synchronize()
+            st = time()
+            for _ in range(num_trials):
+                _ = attn.forward_sdp_kernel(x)
+            torch.cuda.synchronize()
+            et = time()
+            print(f'Forward memory efficient took {et - st} seconds for {num_trials} trials')
