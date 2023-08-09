@@ -65,9 +65,10 @@ if __name__ == '__main__':
     dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     bs = 16
     h, w = (32,32) if torch.cuda.is_available() else (16, 16)
-    embed_dim = 8 * 128 # maximum shape allowed by sdp kernel for flash attention
+    num_heads = 16
+    embed_dim = 128 * num_heads # maximum shape allowed by sdp kernel for flash attention
     x = torch.randn(bs, h, w, embed_dim, dtype=dtype, device=device)
-    attn = Attention(embed_dim).to(device).eval()
+    attn = Attention(embed_dim, num_heads).to(device).eval()
     if torch.cuda.is_available():
         attn = attn.half()
     
@@ -98,7 +99,7 @@ if __name__ == '__main__':
         with torch.backends.cuda.sdp_kernel(
             enable_flash=True, enable_math=False, enable_mem_efficient=False
         ):
-            if embed_dim > 128:
+            if embed_dim//num_heads > 128:
                 print('Skipping flash attention because embed_dim > 128')
             elif x.ndim != 4:
                 print('Skipping flash attention because x.ndim != 4')
