@@ -65,7 +65,7 @@ if __name__ == '__main__':
     dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     bs = 16
     h, w = (32,32) if torch.cuda.is_available() else (16, 16)
-    embed_dim = 1280
+    embed_dim = 8 * 128 # maximum shape allowed by sdp kernel for flash attention
     x = torch.randn(bs, h, w, embed_dim, dtype=dtype, device=device)
     attn = Attention(embed_dim).to(device).eval()
     if torch.cuda.is_available():
