@@ -60,9 +60,10 @@ class Attention(nn.Module):
     
 if __name__ == '__main__':
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    print(f'Using device {device}')
     dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     bs = 16
-    h, w = 16, 16
+    h, w = (32,32) if torch.cuda.is_available() else (16, 16)
     embed_dim = 1280
     x = torch.randn(bs, h, w, embed_dim, dtype=dtype, device=device)
     attn = Attention(embed_dim).to(device).eval()
@@ -71,4 +72,5 @@ if __name__ == '__main__':
     y1 = attn.forward(x)
     y2 = attn.forward_sdp_kernel(x)
     print((y1 - y2).abs().max().item())
-    print(torch.allclose(y1, y2, atol=1e-6))
+    atol = 1e-3 if torch.cuda.is_available() else 1e-6
+    print(torch.allclose(y1, y2, atol=atol))
